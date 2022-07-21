@@ -1,5 +1,5 @@
-import { pixabayApi } from './js/constructor-pixabay';
-import galleryCard from './templates/galleryCard.hbs';
+import { pixabayApi } from '../js/constructor-pixabay';
+import galleryCard from '../templates/galleryCard.hbs';
 import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
@@ -13,12 +13,8 @@ const SimpleEl = new SimpleLightbox('.gallery a', {
 const formEl = document.querySelector('#search-form');
 const inputEl = document.querySelector('[name="searchQuery"]');
 const cardsArrEl = document.querySelector('.gallery');
-const loadMoreBtnEl = document.querySelector('.load-more');
-
-loadMoreBtnEl.classList.add('is-hidden');
 
 formEl.addEventListener('submit', onClickSubmitSearch);
-loadMoreBtnEl.addEventListener('click', onClickLoadMoreCards);
 
 async function onClickSubmitSearch(evt) {
   evt.preventDefault();
@@ -32,12 +28,10 @@ async function onClickSubmitSearch(evt) {
 
     if (inputEl.value.trim() === '') {
       cardsArrEl.innerHTML = '';
-      loadMoreBtnEl.classList.add('is-hidden');
       return;
     }
 
     if (cardsArr.data.total === 0) {
-      loadMoreBtnEl.classList.add('is-hidden');
       Notiflix.Notify.failure(
         'Sorry, there are no images matching your search query. Please try again.'
       );
@@ -47,15 +41,14 @@ async function onClickSubmitSearch(evt) {
       Notiflix.Notify.info(
         `Hooray! We found ${cardsArr.data.totalHits} images.`
       );
-      loadMoreBtnEl.classList.add('is-hidden');
+
       addCards(cardsArr.data.hits);
     } else {
       Notiflix.Notify.info(
         `Hooray! We found ${cardsArr.data.totalHits} images.`
       );
       addCards(cardsArr.data.hits);
-
-      loadMoreBtnEl.classList.remove('is-hidden');
+      observer.observe(target);
     }
 
     evt.target.reset();
@@ -70,22 +63,14 @@ async function onClickLoadMoreCards(evt) {
   try {
     const cardsArr = await pixabayApiNew.fetchPhotoOnSearc();
     if (cardsArr.data.hits.length < pixabayApiNew.per_page) {
-      loadMoreBtnEl.classList.add('is-hidden');
       Notiflix.Notify.info(
         'We&#39re sorry, but you&#39ve reached the end of search results.'
       );
+      observer.unobserve(target);
+      target.classList.remove('loader');
     }
 
     addCards(cardsArr.data.hits);
-
-    const { height: cardHeight } = document
-      .querySelector('.gallery')
-      .firstElementChild.getBoundingClientRect();
-    console.log({ height: cardHeight });
-    window.scrollBy({
-      top: cardHeight * 2,
-      behavior: 'smooth',
-    });
   } catch (err) {
     console.log(err);
   }
@@ -95,3 +80,19 @@ function addCards(elem) {
   cardsArrEl.insertAdjacentHTML('beforeend', galleryCard(elem));
   SimpleEl.refresh();
 }
+
+const options = {
+  root: null,
+  rootMargin: '0px',
+  threshold: 0.1,
+};
+const callback = function (entries, observer) {
+  if (entries[0].isIntersecting) {
+    target.classList.add('loader');
+    onClickLoadMoreCards();
+  }
+};
+const observer = new IntersectionObserver(callback, options);
+const target = document.querySelector('.inf-load');
+// console.log(observer);
+// console.log(target);
